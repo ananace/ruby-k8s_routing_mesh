@@ -1,0 +1,49 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'k8s_routing_mesh'
+require 'optparse'
+require 'ostruct'
+
+options = OpenStruct.new
+parser = OptParse.new do |opts|
+  opts.banner = 'Usage: routing-mesh [options...]'
+
+  opts.on('-c', '--config=FILE', 'Run with a specific configuration file, can be specified multiple times') do |file|
+    raise ArgumentError, 'Not a valid path' unless File.exist? file
+
+    (options.config_files ||= []) << file
+  end
+
+  opts.on('-I', '--interval=INTERVAL', 'Pump lease every INTERVAL seconds (default 30)') do |interval|
+    raise ArgumentError, 'Interval must be an Integer' unless interval.to_i.to_s == interval.to_s
+
+    options.interval = interval.to_i
+  end
+
+  opts.on('-F', '--interface=INTERFACE', 'Apply route mesh on interface with given name/glob') do |interface|
+    options.interface = interface
+  end
+
+  opts.on('-v', '--verbose', 'Increase log level') do
+    options.verbose = true
+  end
+
+  opts.on('-h', '--help', 'Print this text and exit') do
+    puts parser
+    exit
+  end
+
+  opts.on('-V', '--version', 'Print the application version and exit') do
+    puts "routing-mesh v#{K8sRoutingMesh::VERSION}"
+    exit
+  end
+end
+parser.parse!
+
+client = K8sRoutingMesh::Client.instance
+options.each do |k, v|
+  client.send(:"#{k}=", v)
+end
+
+client.run
